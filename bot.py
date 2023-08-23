@@ -934,15 +934,19 @@ class MidlandBot:
         Function Starts the bot and makes sure the bot is running
         """
         # Login to the Midland bot website
+        time.sleep(15)
+        self.logger.info(f"Current Page --> {self.driver.title}")
         self.login_to_website()
 
         # open the page for all listings in birmingham within a 20 mile radius
+        self.logger.info(f"Current Page --> {self.driver.title}")
         self.get_results_for_city()
 
         # Monitor the listing with the given id and click on the button when the listing becomes available.
         self.send_message_to_telegram(
             f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
 
+        self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
         time.sleep(3)
 
