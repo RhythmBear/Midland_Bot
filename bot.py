@@ -6,11 +6,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, NoSuchFrameException, \
-    TimeoutException
+    TimeoutException, StaleElementReferenceException
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver import ActionChains
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from random import randint
 from utils import send_message_to_private_channel
 import pickle
@@ -23,11 +24,13 @@ load_dotenv()
 
 class MidlandBot:
 
-    def __init__(self):
-        self.username = os.getenv("MH_USERNAME")
-        self.password = os.getenv("MH_PASSWORD")
+    def __init__(self, user_name, password, monitoring_id, ni_number):
+        self.username = user_name
+        self.password = password
         self.home_page = "https://homes.midlandheart.org.uk/"
         self.tab_before_login = ""
+        self.user_ni_number = ni_number
+        self.listing_id = monitoring_id
         self.listings_for_today = []
         self.logger = logging.getLogger("Midland_logger")
         self.logger.setLevel(logging.INFO)  # Set the desired logging level for this class
@@ -40,7 +43,7 @@ class MidlandBot:
         self.logger.addHandler(console_handler)
 
         # Create a FileHandler to log to a file (optional)
-        file_handler = logging.FileHandler('myclass.log')
+        file_handler = logging.FileHandler(f'{user_name}_{monitoring_id}.log')
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
@@ -51,6 +54,7 @@ class MidlandBot:
 
         # open homepage
         self.driver.get(self.home_page)
+        self.logger.info("Bot is starting...")
 
     @staticmethod
     def initialize_chrome_driver():
@@ -59,8 +63,6 @@ class MidlandBot:
         :return: The Chrome Driver
         :rtype:
         """
-        # Chrome driver path
-        driver_path = "chromedriver.exe"
 
         # Create Chrome options instance
         options = Options()
@@ -81,10 +83,10 @@ class MidlandBot:
         options.add_experimental_option("useAutomationExtension", False)
 
         # Run in the headless browser
-        options.headless = True
+        options.headless = False
 
         # Setting the driver path and requesting a page
-        driver = webdriver.Chrome(service=ChromeService(driver_path), options=options)
+        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
         # Changing the property of the navigator value for webdriver to undefined
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -118,6 +120,22 @@ class MidlandBot:
             return False
 
         return self.login_success()
+
+    def sleep_until_9am(self):
+        current_time = datetime.now().time()
+        start_time = dtime(0, 0)
+        target_time = dtime(9, 0)
+
+        if start_time <= current_time < target_time:
+            sleep_seconds = (target_time.hour - current_time.hour) * 3600 + (
+                        target_time.minute - current_time.minute) * 60
+            self.logger.info(f"Waiting for {sleep_seconds} seconds...")
+            time.sleep(sleep_seconds)
+
+            self.logger.info("It's 9:00 AM!")
+
+        else:
+            self.logger.info("It's already past 9:00 AM!")
 
     def send_message_to_telegram(self, message):
         # Replace with your bot token and the private channel's username
@@ -246,8 +264,7 @@ class MidlandBot:
         except FileNotFoundError:
             self.logger.info('Could not find Cookies file...')
 
-    @staticmethod
-    def extend_cookies():
+    def extend_cookies(self):
         cookie_file_path = 'midland_cookies.pkl'
 
         # Check if the cookie file exists
@@ -266,18 +283,17 @@ class MidlandBot:
             with open(cookie_file_path, 'wb') as f:
                 pickle.dump(cookies, f)
 
-            print("Cookies expiration extended successfully.")
+            self.logger.info("Cookies expiration extended successfully.")
         else:
-            print("Cookie file not found. Make sure to save the cookies first.")
+            self.logger.info("Cookie file not found. Make sure to save the cookies first.")
 
-    @staticmethod
-    def delete_cookie_file():
+    def delete_cookie_file(self):
         cookie_file_path = 'midland_cookies.pkl'
         if os.path.exists(cookie_file_path):
             os.remove(cookie_file_path)
-            print(f"Deleted the cookie file: {cookie_file_path}")
+            self.logger.info(f"Deleted the cookie file: {cookie_file_path}")
         else:
-            print("Cookie file does not exist.")
+            self.logger.info("Cookie file does not exist.")
 
     def get_results_for_city(self, city="Birmingham", mile_radius=20):
         """
@@ -520,7 +536,7 @@ class MidlandBot:
     @staticmethod
     def get_files_uploaded(driver):
         uploads = driver.find_elements(By.XPATH, './/span[@class="fa fa-fw fa-trash-o fa-2x"]')
-        # print(uploads)
+        # self.logger.info(uploads)
         return len(uploads)
 
     def get_files_available(self, driver):
@@ -530,12 +546,19 @@ class MidlandBot:
 
         # Wait till the close button in clickable
         # test_bot.button_is_clickable('//span[@class="fa fa-fw fa-close fa-2x"]', 10)
-        close_button = driver.find_element(By.XPATH, '//span[@class="fa fa-fw fa-close fa-2x"]')
+        close_buttons = driver.find_elements(By.XPATH, '//span[@class="fa fa-fw fa-close fa-2x"]')
 
         avail_files = self.driver.find_elements(By.XPATH, '//aside//input[@value="Add"]')
-        # print(avail_files)
+        # self.logger.info(avail_files)
         time.sleep(1)
-        close_button.click()
+
+        for i in range(len(close_buttons)):
+            try:
+                close_buttons[i].click()
+            except:
+                pass
+            else:
+                continue
 
         return len(avail_files)
 
@@ -575,11 +598,17 @@ class MidlandBot:
         except NoSuchElementException:
             return None
 
-    def monitor_listing(self, id: int, hrs=3):
-        iterations = 10 * hrs
-        for i in range(iterations):
-            time.sleep(randint(10, 60))
-            status = self.is_listing_available(id=id, waiting_timeout=300)
+    def monitor_listing(self, id: int):
+        start_time = dtime(9, 0)
+        end_time = dtime(12, 0)
+        timeout = 20
+
+        while start_time <= datetime.now().time() <= end_time:
+            if dtime(10, 30) <= datetime.now().time() <= end_time:
+                self.logger.info(f"Waiting time is now {timeout}")
+                timeout = 10
+            time.sleep(randint(5, 10))
+            status = self.is_listing_available(id=id, waiting_timeout=timeout)
             if status:
                 break
 
@@ -652,10 +681,10 @@ class MidlandBot:
     def get_top_cards(self):
         top_cards_con = self.driver.find_element(By.ID,
                                                      "MidlandHeartWeb_Theme_wt72_block_OutSystemsUIWeb_wt2_block_wtContent_wtMainContent_OutSystemsUIWeb_wt107_block_wtColumn1_wtGroupsList")
-        # print(top_cards_con)
+        # self.logger.info(top_cards_con)
 
         top_cards = top_cards_con.find_elements(By.XPATH, './/div[@class="margin-bottom-base"]')
-        # print(top_cards)
+        # self.logger.info(top_cards)
         return top_cards
 
     def click_continue_button(self):
@@ -696,6 +725,15 @@ class MidlandBot:
             else:
                 time.sleep(1)
 
+    def check_and_click_continue_button(self):
+        if self.continue_button_clickable():
+            self.click_continue_button()
+            next_page = self.click_continue_button()
+            if next_page:
+                return True
+            else:
+                pass
+
     def pass_eligibility_stage(self):
         """
         THis functions passes through the elegiility stage. and returns a boolean depending on the outcome.
@@ -703,6 +741,11 @@ class MidlandBot:
         :rtype: bool
         """
         if self.on_valid_page('Eligibility'):
+
+            can_proceed_to_next = self.check_and_click_continue_button()
+            if can_proceed_to_next:
+                return True
+
             # Check to see if the continue button is clickable.
             continue_button = self.driver.find_element(By.XPATH, '//input[@type="submit" and @value="Continue"]')
             self.logger.info("Checking to see if all the requirements have been filled...")
@@ -737,20 +780,27 @@ class MidlandBot:
     def pass_evidence_stage(self):
         # Check to ensure that we are on teh right page
         if self.on_valid_page('Evidence'):
+            time.sleep(7)
             all_top_cards = self.get_top_cards()
+            self.logger.info(f"Found {len(all_top_cards)} categories of requirements")
 
             for u in range(len(all_top_cards)):
+                can_proceed_to_next = self.check_and_click_continue_button()
+                if can_proceed_to_next:
+                    return True
+
                 alll_cards = self.get_top_cards()
                 active_top_card = alll_cards[u]
-                print(active_top_card.text)
+                self.logger.info(active_top_card.text)
+                time.sleep(5)
                 self.interact_and_click(active_top_card)
-                time.sleep(3)
 
                 # Get the individual Cards beneath the main top_card
                 requirements_cards = self.get_all_cards(self.driver)
                 num_of_cards = len(requirements_cards)
 
                 for i in range(num_of_cards):
+                    time.sleep(5)
                     current_card = self.get_all_cards(self.driver)[i]
                     current_card_name = self.card_name(current_card)
                     self.logger.info(f"\nCard --> {current_card_name}")
@@ -784,16 +834,21 @@ class MidlandBot:
                     if files_uploaded >= files_available:
                         self.logger.info(f"Uploaded all available files for {current_card_name}")
 
-                    if self.continue_button_clickable():
-                        self.click_continue_button()
+                    can_proceed_to_next = self.check_and_click_continue_button()
+                    if can_proceed_to_next:
+                        return True
 
             if self.continue_button_clickable():
                 self.click_continue_button()
+                next_page = self.click_continue_button()
+                if next_page:
+                    return True
             else:
                 self.logger.info("Some Requirements were not met. Cannot proceed to Next Stage.")
-
+                return False
         else:
             self.logger.info("This is not the valid page for this action.")
+            return False
 
     def pass_contact_details(self):
         # Confirm that we are on the vaild page
@@ -869,20 +924,54 @@ class MidlandBot:
             self.logger.info("It works, I cannot submit it now...")
             # submit_button.click()
 
-    def upload_ni_number(self):
-        pass
+    def start_bot(self):
+        """
+        Function Starts the bot and makes sure the bot is running
+        """
+        # Login to the Midland bot website
+        self.login_to_website()
 
-    def upload_medical_evidence(self):
-        pass
+        # open the page for all listings in birmingham within a 20 mile radius
+        self.get_results_for_city()
 
-    def upload_birth_cert(self):
-        pass
+        # Monitor the listing with the given id and click on the button when the listing becomes available.
+        self.send_message_to_telegram(
+            f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
 
-    def proof_of_income(self):
-        pass
+        self.monitor_listing(self.listing_id)
+        time.sleep(3)
 
-    def pass_preference_stage(self):
-        pass
+        self.pass_eligibility_stage()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_preference_group()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_evidence_stage()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_contact_details()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_extra_stage(self.listing_id)
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_savings_income_stage()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_equality_stage()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
+
+        self.pass_confirm_details_stage()
+        time.sleep(5)
+        self.logger.info(f"Current Page --> {self.driver.title}")
 
 
 
