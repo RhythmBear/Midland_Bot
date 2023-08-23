@@ -606,7 +606,7 @@ class MidlandBot:
             return None
 
     def monitor_listing(self, id: int):
-        start_time = dtime(9, 0)
+        start_time = dtime(8, 0)
         end_time = dtime(12, 0)
         timeout = 20
 
