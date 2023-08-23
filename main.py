@@ -13,13 +13,17 @@ def run_bot():
     parser.add_argument("password", type=str, help="Your password")
     parser.add_argument("monitoring_id", type=int, help="Monitoring ID")
     parser.add_argument("ni_number", type=str, help="NI number")
+    parser.add_argument("start_time", type=int, help="starting time")
+    parser.add_argument("end_time", type=int, help="ending time")
     args = parser.parse_args()
 
     # Create the bot class
     start_bot = MidlandBot(user_name=args.username,
                            password=args.password,
                            monitoring_id=args.monitoring_id,
-                           ni_number=args.ni_number
+                           ni_number=args.ni_number,
+                           start=args.start_time,
+                           end=args.end_time,
                            )
     start_bot.start_bot()
 

@@ -13,6 +13,6 @@ monitoring_id = 3355
 test_bot = MidlandBot(user_name=os.getenv('MH_USERNAME'),
                       password=os.getenv('MH_PASSWORD'),
                       monitoring_id=monitoring_id,
-                      ni_number="JB321623C"
+                      ni_number="JB321613C"
                       )
 test_bot.start_bot()

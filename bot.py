@@ -24,11 +24,13 @@ load_dotenv()
 
 class MidlandBot:
 
-    def __init__(self, user_name, password, monitoring_id, ni_number):
+    def __init__(self, user_name, password, monitoring_id, ni_number, start, end):
         self.username = user_name
         self.password = password
         self.home_page = "https://homes.midlandheart.org.uk/"
         self.tab_before_login = ""
+        self.start_time = start
+        self.end_time = end
         self.user_ni_number = ni_number
         self.listing_id = monitoring_id
         self.listings_for_today = []
@@ -605,14 +607,15 @@ class MidlandBot:
             return None
 
     def monitor_listing(self, id: int):
-        start_time = dtime(8, 0)
-        end_time = dtime(12, 0)
+        start_time = dtime(self.start_time, 0)
+        end_time = dtime(self.end_time, 0)
         timeout = 20
 
         while start_time <= datetime.now().time() <= end_time:
             if dtime(10, 30) <= datetime.now().time() <= end_time:
-                self.logger.info(f"Waiting time is now {timeout}")
                 timeout = 10
+                self.logger.info(f"Waiting time is now {timeout}")
+
             time.sleep(randint(5, 10))
             status = self.is_listing_available(id=id, waiting_timeout=timeout)
             if status:
@@ -784,7 +787,7 @@ class MidlandBot:
     def pass_evidence_stage(self):
         # Check to ensure that we are on teh right page
         if self.on_valid_page('Evidence'):
-            time.sleep(7)
+            time.sleep(3)
             all_top_cards = self.get_top_cards()
             self.logger.info(f"Found {len(all_top_cards)} categories of requirements")
 
@@ -797,8 +800,10 @@ class MidlandBot:
                 active_top_card = alll_cards[u]
                 self.logger.info(active_top_card.text)
                 time.sleep(5)
-                self.interact_and_click(active_top_card)
-
+                try:
+                    self.interact_and_click(active_top_card)
+                except ElementNotInteractableException:
+                    pass
                 # Get the individual Cards beneath the main top_card
                 requirements_cards = self.get_all_cards(self.driver)
                 num_of_cards = len(requirements_cards)
@@ -933,7 +938,7 @@ class MidlandBot:
         Function Starts the bot and makes sure the bot is running
         """
         # Login to the Midland bot website
-        time.sleep(15)
+        time.sleep(5)
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.login_to_website()
 
@@ -942,8 +947,8 @@ class MidlandBot:
         self.get_results_for_city()
 
         # Monitor the listing with the given id and click on the button when the listing becomes available.
-        self.send_message_to_telegram(
-            f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
+        # self.send_message_to_telegram(
+        #     f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
 
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
