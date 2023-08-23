@@ -927,7 +927,7 @@ class MidlandBot:
 
             submit_button = self.driver.find_element(By.XPATH, '//input[@type="submit" and @value="Submit"]')
             self.logger.info("It works, I cannot submit it now...")
-            # submit_button.click()
+            self.interact_and_click(submit_button)
 
     def start_bot(self):
         """
