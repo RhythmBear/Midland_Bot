@@ -81,9 +81,16 @@ class MidlandBot:
 
         # Turn-off userAutomationExtension
         options.add_experimental_option("useAutomationExtension", False)
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--remote-debugging-port=9222')
 
         # Run in the headless browser
-        options.headless = False
+        options.headless = True
+
+        # Set this to make it work with the docker container
+        options.add_argument('--disable-gpu')
+        # options.add_argument('--remote-debugging-port=9222')
 
         # Setting the driver path and requesting a page
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
@@ -610,12 +617,10 @@ class MidlandBot:
             time.sleep(randint(5, 10))
             status = self.is_listing_available(id=id, waiting_timeout=timeout)
             if status:
-                break
+                return status
 
             else:
                 self.driver.refresh()
-
-        return status
 
     def on_error_page(self):
         if "Error" in self.driver.title:
