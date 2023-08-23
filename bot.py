@@ -165,7 +165,6 @@ class MidlandBot:
         # Try to load cookies before logging in then login if the cookies is not available
         # cookies_success = self.login_with_cookies()
 
-        login_button = self.driver.find_element(By.XPATH, '//a[@href="Login.aspx"]')
         time.sleep(randint(0, 4))
 
         # Open Login URL
