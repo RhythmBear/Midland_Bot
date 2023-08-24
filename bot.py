@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, NoSuchFrameException, \
     TimeoutException, StaleElementReferenceException
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver import ActionChains
 from dotenv import load_dotenv
@@ -51,12 +52,39 @@ class MidlandBot:
         self.logger.addHandler(file_handler)
 
         # Initialize Chrome Driver
-        self.driver = self.initialize_chrome_driver()
+        self.driver = self.initialize_remote_chrome_driver()
         self.action = ActionChains(self.driver)
 
         # open homepage
         self.driver.get(self.home_page)
         self.logger.info("Bot is starting...")
+
+    def initialize_remote_chrome_driver(grid_url):
+        """
+        Initializes the Remote Chrome Driver and then returns the driver object.
+        :param grid_url: URL of the Selenium Grid hub
+        :return: The Remote Chrome Driver
+        """
+
+        # Define desired capabilities for Chrome
+        capabilities = DesiredCapabilities.CHROME.copy()
+
+        # Set options for Chrome
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option("useAutomationExtension", False)
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--headless')
+
+        # Create the remote driver instance
+        driver = webdriver.Remote(command_executor=grid_url, desired_capabilities=capabilities, options=chrome_options)
+
+        # Changing the property of the navigator value for webdriver to undefined
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+        return driver
 
     @staticmethod
     def initialize_chrome_driver():
@@ -611,6 +639,7 @@ class MidlandBot:
         end_time = dtime(self.end_time, 0)
         timeout = 20
 
+        self.logger.info(f'Monitoring from time {self.start_time} --> {self.end_time}')
         while start_time <= datetime.now().time() <= end_time:
             if dtime(10, 30) <= datetime.now().time() <= end_time:
                 timeout = 10
