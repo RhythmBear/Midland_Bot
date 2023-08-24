@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -52,7 +53,7 @@ class MidlandBot:
         self.logger.addHandler(file_handler)
 
         # Initialize Chrome Driver
-        self.driver = self.initialize_remote_chrome_driver()
+        self.driver = self.initialize_chrome_driver()
         self.action = ActionChains(self.driver)
 
         # open homepage
@@ -79,8 +80,11 @@ class MidlandBot:
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--headless')
 
-        # Create the remote driver instance
-        driver = webdriver.Remote(command_executor=grid_url, desired_capabilities=capabilities, options=chrome_options)
+        driver = webdriver.Remote(
+            command_executor=grid_url,
+            options=chrome_options,
+          # Set the desired capabilities here
+        )
 
         # Changing the property of the navigator value for webdriver to undefined
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
