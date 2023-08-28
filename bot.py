@@ -585,13 +585,17 @@ class MidlandBot:
         driver.find_element(By.XPATH, './/span[@class="heading6"]').click()
         time.sleep(5)
 
-        # Wait till the close button in clickable
-        # test_bot.button_is_clickable('//span[@class="fa fa-fw fa-close fa-2x"]', 10)
-        close_buttons = driver.find_elements(By.XPATH, '//span[@class="fa fa-fw fa-close fa-2x"]')
+        # Wait till the close button is clickable
+        if self.button_is_clickable('//span[@class="fa fa-fw fa-close fa-2x"]', 5):
 
-        avail_files = self.driver.find_elements(By.XPATH, '//aside//input[@value="Add"]')
+            avail_files = self.driver.find_elements(By.XPATH, '//aside//input[@value="Add"]')
         # self.logger.info(avail_files)
-        time.sleep(1)
+            time.sleep(1)
+
+        else:
+            avail_files = self.driver.find_elements(By.XPATH, '//aside//input[@value="Add"]')
+
+        close_buttons = driver.find_elements(By.XPATH, '//span[@class="fa fa-fw fa-close fa-2x"]')
 
         for i in range(len(close_buttons)):
             try:
@@ -688,9 +692,9 @@ class MidlandBot:
         :param element: The element to interact with
         :type element: selenium.Element
         """
-        time.sleep(randint(0, 3))
+        time.sleep(randint(0, 1))
         self.action.move_to_element(element)
-        time.sleep(randint(0, 3))
+        time.sleep(randint(0, 1))
         element.click()
 
     def button_is_clickable(self, button_xpath, timeout=3):
@@ -711,9 +715,9 @@ class MidlandBot:
         :param text_to_enter: The text to be entered into the selenium function
         :type text_to_enter: string
         """
-        time.sleep(randint(0, 3))
+        time.sleep(randint(0, 2))
         self.action.move_to_element(element)
-        time.sleep(randint(0, 3))
+        time.sleep(randint(0, 1))
         element.send_keys(text_to_enter)
 
     def continue_button_clickable(self):
@@ -821,7 +825,6 @@ class MidlandBot:
     def pass_evidence_stage(self):
         # Check to ensure that we are on teh right page
         if self.on_valid_page('Evidence'):
-            time.sleep(3)
             all_top_cards = self.get_top_cards()
             self.logger.info(f"Found {len(all_top_cards)} categories of requirements")
 
@@ -833,7 +836,7 @@ class MidlandBot:
                 alll_cards = self.get_top_cards()
                 active_top_card = alll_cards[u]
                 self.logger.info(active_top_card.text)
-                time.sleep(5)
+                time.sleep(3)
                 try:
                     self.interact_and_click(active_top_card)
                 except ElementNotInteractableException:
@@ -843,7 +846,7 @@ class MidlandBot:
                 num_of_cards = len(requirements_cards)
 
                 for i in range(num_of_cards):
-                    time.sleep(5)
+                    time.sleep(3)
                     current_card = self.get_all_cards(self.driver)[i]
                     current_card_name = self.card_name(current_card)
                     self.logger.info(f"\nCard --> {current_card_name}")
@@ -965,7 +968,7 @@ class MidlandBot:
 
             submit_button = self.driver.find_element(By.XPATH, '//input[@type="submit" and @value="Submit"]')
             self.logger.info("It works, I cannot submit it now...")
-            self.interact_and_click(submit_button)
+            # self.interact_and_click(submit_button)
 
     def start_bot(self):
         """
@@ -986,38 +989,38 @@ class MidlandBot:
 
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
-        time.sleep(3)
+        time.sleep(2)
 
         self.pass_eligibility_stage()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_preference_group()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_evidence_stage()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_contact_details()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_extra_stage(self.listing_id)
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_savings_income_stage()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_equality_stage()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_confirm_details_stage()
-        time.sleep(5)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
 
