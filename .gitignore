@@ -1,4 +1,7 @@
 .env
 *.pkl
 *.log
+.*
+__pycache__/*
+linenv
 

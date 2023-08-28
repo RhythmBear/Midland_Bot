@@ -121,7 +121,7 @@ class MidlandBot:
         options.add_argument('--remote-debugging-port=9222')
 
         # Run in the headless browser
-        options.headless = True
+        options.headless = False
 
         # Set this to make it work with the docker container
         options.add_argument('--disable-gpu')
@@ -606,24 +606,42 @@ class MidlandBot:
                 continue
 
         return len(avail_files)
-
     @staticmethod
-    def add_nth_item(driver, index):
+    def element_is_now_stale(element):
+        try:
+            wait = WebDriverWait(element, 5)
+            wait.until(EC.staleness_of(element))
+        except TimeoutException:
+            return False
+
+        else:
+            return True
+
+    def add_nth_item(self, driver, index):
         # Click the card title to open the pop up for the files
         driver.find_element(By.XPATH, './/span[@class="heading6"]').click()
-        time.sleep(3)
+        button_is_clickable = self.button_is_clickable('//aside//input[@value="Add"]', 5)
+
+        self.logger.info(f"The Add item is now Clickable : {button_is_clickable}")
+
+        if not button_is_clickable:
+            time.sleep(3)
 
         # Get the list of available files
         avail_files = driver.find_elements(By.XPATH, '//aside//input[@value="Add"]')
 
         # If there are no uploaded files
-        if avail_files == []:
-            return False
-            # Get the item in the index given
+        if not avail_files:
+            return False, len(avail_files)
+
+        # Get the item in the index given
         item_to_select = avail_files[index]
+        # Click the add button
         item_to_select.click()
-        time.sleep(3)
-        return True
+        # wait for the element to become stale
+        self.logger.info(f"The last add button is now stale : {self.element_is_now_stale(item_to_select)}")
+
+        return True, len(avail_files)
 
     @staticmethod
     def get_all_cards(driver):
@@ -798,6 +816,7 @@ class MidlandBot:
                 self.logger.info("All requirements have been filled, Clicking button to proceed to next stage...")
 
                 self.interact_and_click(continue_button)
+
                 return True
 
             else:
@@ -849,36 +868,60 @@ class MidlandBot:
                     time.sleep(3)
                     current_card = self.get_all_cards(self.driver)[i]
                     current_card_name = self.card_name(current_card)
-                    self.logger.info(f"\nCard --> {current_card_name}")
-                    # self.logger.info(current_card.text)
-                    files_uploaded = self.get_files_uploaded(current_card)
-                    files_available = self.get_files_available(current_card)
 
-                    if files_available == 0:
-                        self.logger.info(f"No File was found for {current_card_name}")
-                        continue
-                    if files_uploaded >= files_available:
+                    if self.get_files_uploaded(current_card) >= 1:
                         self.logger.info(f"All requirements have been fufilled for the {current_card_name} card")
                         continue
-                    self.logger.info("\n")
-                    self.logger.info(f"files_added : {files_uploaded} \nfiles available : {files_available}")
+                    self.logger.info(f"Card --> {current_card_name}")
+                    if 'A copy is required' in current_card.text:
+                        self.logger.info('This card requires Multiple files')
+                        num_loops = 10
+                    else:
+                        num_loops = 1
+                    # self.logger.info(current_card.text)
+                    # files_uploaded = self.get_files_uploaded(current_card)
+                    # files_available = self.get_files_available(current_card)
+
+                    # if files_available == 0:
+                    #     self.logger.info(f"No File was found for {current_card_name}")
+                    #     continue
+                    # if files_uploaded >= files_available:
+                    #     self.logger.info(f"All requirements have been fufilled for the {current_card_name} card")
+                    #     continue
+                    # self.logger.info("\n")
+                    # self.logger.info(f"files_added : {files_uploaded} \nfiles available : {files_available}")
 
                     # loop through the number of available files and add each one.
-                    for j in range(files_available):
+
+                    for j in range(num_loops):
                         current_card = self.get_all_cards(self.driver)[i]
-                        success = self.add_nth_item(current_card, j)
+
+                        try:
+                            success, num = self.add_nth_item(current_card, j)
+                        except IndexError:
+                            self.logger.info('Already exhausted files to be added')
+                            break
 
                         # Check if the attempt to upload the files were succesful else
                         if success:
-                            new_current_card = self.get_all_cards(self.driver)[i]
-                            name_of_file_added = self.get_latest_file_uploaded_to_card(new_current_card)
-                            self.logger.info(f"Successfully uploaded file: {name_of_file_added} for {current_card_name}")
-                            files_uploaded += 1
+                            # new_current_card = self.get_all_cards(self.driver)[i]
+                            # name_of_file_added = self.get_latest_file_uploaded_to_card(new_current_card)
+                            # self.logger.info(f"Successfully uploaded file: {name_of_file_added} for {current_card_name}")
+                            # files_uploaded += 1
+                            self.logger.info('Successfully uploaded file for {current_card_name}')
                         else:
-                            self.logger.info(f"There are no Uploaded files for {current_card_name}")
+                            self.logger.info(
+                                f"Either something went wrong or there are no Uploaded files for {current_card_name}")
 
-                    if files_uploaded >= files_available:
-                        self.logger.info(f"Uploaded all available files for {current_card_name}")
+                        # Check to see if we can continue the loop
+                        if j == num - 1:
+                            self.logger.info('Uploaded the last file for this card')
+                            break
+                        else:
+                            continue
+
+                    # if files_uploaded >= files_available:
+                    #     self.logger.info(f"Uploaded all available files for {current_card_name}")
 
                     can_proceed_to_next = self.check_and_click_continue_button()
                     if can_proceed_to_next:
@@ -989,18 +1032,18 @@ class MidlandBot:
 
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
-        time.sleep(2)
+        time.sleep(1)
 
         self.pass_eligibility_stage()
-        time.sleep(2)
+        time.sleep(1)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_preference_group()
-        time.sleep(2)
+        time.sleep(1)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_evidence_stage()
-        time.sleep(2)
+        time.sleep(1)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_contact_details()
