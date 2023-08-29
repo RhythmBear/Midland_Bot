@@ -1027,23 +1027,23 @@ class MidlandBot:
         self.get_results_for_city()
 
         # Monitor the listing with the given id and click on the button when the listing becomes available.
-        # self.send_message_to_telegram(
-        #     f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
+        self.send_message_to_telegram(
+            f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
 
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
         time.sleep(1)
 
         self.pass_eligibility_stage()
-        time.sleep(1)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_preference_group()
-        time.sleep(1)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_evidence_stage()
-        time.sleep(1)
+        time.sleep(2)
         self.logger.info(f"Current Page --> {self.driver.title}")
 
         self.pass_contact_details()
