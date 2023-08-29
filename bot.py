@@ -121,7 +121,7 @@ class MidlandBot:
         options.add_argument('--remote-debugging-port=9222')
 
         # Run in the headless browser
-        options.headless = False
+        options.headless = True
 
         # Set this to make it work with the docker container
         options.add_argument('--disable-gpu')
