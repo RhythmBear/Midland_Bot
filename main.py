@@ -18,7 +18,8 @@ def run_bot():
     args = parser.parse_args()
 
     # Create the bot class
-    start_bot = MidlandBot(user_name=args.username,
+    start_bot = MidlandBot(test=False,
+                           user_name=args.username,
                            password=args.password,
                            monitoring_id=args.monitoring_id,
                            ni_number=args.ni_number,

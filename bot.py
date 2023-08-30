@@ -59,7 +59,7 @@ class MidlandBot:
 
         # open homepage
         self.driver.get(self.home_page)
-        self.logger.info("Bot is starting...")
+        self.logger.info(f"Bot is starting... Test: {self.testing}")
 
     @staticmethod
     def initialize_remote_chrome_driver(grid_url):
