@@ -26,7 +26,8 @@ load_dotenv()
 
 class MidlandBot:
 
-    def __init__(self, user_name, password, monitoring_id, ni_number, start, end):
+    def __init__(self, test, user_name, password, monitoring_id, ni_number, start, end):
+        self.testing = test
         self.username = user_name
         self.password = password
         self.home_page = "https://homes.midlandheart.org.uk/"
@@ -122,6 +123,7 @@ class MidlandBot:
 
         # Run in the headless browser
         options.headless = True
+        options.add_argument('--window-size=1920,1080')
 
         # Set this to make it work with the docker container
         options.add_argument('--disable-gpu')
@@ -224,8 +226,9 @@ class MidlandBot:
             time.sleep(2)
 
         # Save Cookies if the login was successful
-        if self.login_success():
-            time.sleep(3)
+        login_successful = self.login_success()
+        if login_successful:
+            time.sleep(1)
 
             # # Delete existing cookies and save new cookies
             # self.delete_cookie_file()
@@ -234,7 +237,7 @@ class MidlandBot:
 
         # self.close_login_tab()
 
-        return self.login_success()
+        return login_successful
 
     def login_success(self):
         """
@@ -639,7 +642,10 @@ class MidlandBot:
         # Click the add button
         item_to_select.click()
         # wait for the element to become stale
-        self.logger.info(f"The last add button is now stale : {self.element_is_now_stale(item_to_select)}")
+        element_stale = self.element_is_now_stale(item_to_select)
+        self.logger.info(f"The last add button is now stale : {element_stale}")
+        if not element_stale:
+            time.sleep(3)
 
         return True, len(avail_files)
 
@@ -739,7 +745,7 @@ class MidlandBot:
         element.send_keys(text_to_enter)
 
     def continue_button_clickable(self):
-        return self.button_is_clickable('//input[@type="submit" and @value="Continue"]', 2)
+        return self.button_is_clickable('//input[@type="submit" and @value="Continue"]', 3)
 
     def get_top_cards(self):
         top_cards_con = self.driver.find_element(By.ID,
@@ -791,11 +797,9 @@ class MidlandBot:
     def check_and_click_continue_button(self):
         if self.continue_button_clickable():
             self.click_continue_button()
-            next_page = self.click_continue_button()
-            if next_page:
-                return True
-            else:
-                pass
+            return True
+        else:
+            return False
 
     def pass_eligibility_stage(self):
         """
@@ -859,6 +863,7 @@ class MidlandBot:
                 try:
                     self.interact_and_click(active_top_card)
                 except ElementNotInteractableException:
+                    self.logger.info("Top Card not allowing interaction")
                     pass
                 # Get the individual Cards beneath the main top_card
                 requirements_cards = self.get_all_cards(self.driver)
@@ -908,7 +913,7 @@ class MidlandBot:
                             # name_of_file_added = self.get_latest_file_uploaded_to_card(new_current_card)
                             # self.logger.info(f"Successfully uploaded file: {name_of_file_added} for {current_card_name}")
                             # files_uploaded += 1
-                            self.logger.info('Successfully uploaded file for {current_card_name}')
+                            self.logger.info(f'Successfully uploaded file for {current_card_name}')
                         else:
                             self.logger.info(
                                 f"Either something went wrong or there are no Uploaded files for {current_card_name}")
@@ -927,11 +932,8 @@ class MidlandBot:
                     if can_proceed_to_next:
                         return True
 
-            if self.continue_button_clickable():
-                self.click_continue_button()
-                next_page = self.click_continue_button()
-                if next_page:
-                    return True
+            if self.check_and_click_continue_button():
+                return True
             else:
                 self.logger.info("Some Requirements were not met. Cannot proceed to Next Stage.")
                 return False
@@ -943,9 +945,9 @@ class MidlandBot:
         # Confirm that we are on the vaild page
         if self.on_valid_page('Contact'):
             # Since the information on this page is not really compulsory we can proceed
-            progress = self.click_continue_button()
+            progress = self.check_and_click_continue_button()
             if progress:
-                self.logger.info("All Extra Stage requirements have been filled, Proceeding to next stage...")
+                self.logger.info("All Contact Details requirements have been filled, Proceeding to next stage...")
 
             else:
                 self.logger.info("Continue button on this page is not clickable.")
@@ -968,7 +970,7 @@ class MidlandBot:
             else:
                 self.interact_and_type(ni_input, ni_number)
 
-            progress = self.click_continue_button()
+            progress = self.check_and_click_continue_button()
             if progress:
                 self.logger.info("All Extra Stage requirements have been filled, Proceeding to next stage...")
 
@@ -980,9 +982,9 @@ class MidlandBot:
         # Confirm that we are on the vaild page
         if self.on_valid_page('savings'):
             # Since the information on this page is not really compulsory we can proceed
-            progress = self.click_continue_button()
+            progress = self.check_and_click_continue_button()
             if progress:
-                self.logger.info("All Extra Stage requirements have been filled, Proceeding to next stage...")
+                self.logger.info("All Savings and Income requirements have been filled, Proceeding to next stage...")
 
             else:
                 self.logger.info("Continue button on this page is not clickable.")
@@ -993,9 +995,9 @@ class MidlandBot:
     def pass_equality_stage(self):
         if self.on_valid_page('Equality'):
             # Since the information on this page is not really compulsory we can proceed
-            progress = self.click_continue_button()
+            progress = self.check_and_click_continue_button()
             if progress:
-                self.logger.info("All Extra Stage requirements have been filled, Proceeding to next stage...")
+                self.logger.info("All Equality requirements have been filled, Proceeding to next stage...")
 
             else:
                 self.logger.info("Continue button on this page is not clickable.")
@@ -1010,8 +1012,12 @@ class MidlandBot:
             self.interact_and_click(yes_button)
 
             submit_button = self.driver.find_element(By.XPATH, '//input[@type="submit" and @value="Submit"]')
-            self.logger.info("It works, I cannot submit it now...")
-            # self.interact_and_click(submit_button)
+
+            if self.testing:
+                self.logger.info("It works, I cannot submit cause it is a test")
+
+            else:
+                self.interact_and_click(submit_button)
 
     def start_bot(self):
         """
@@ -1028,11 +1034,11 @@ class MidlandBot:
 
         # Monitor the listing with the given id and click on the button when the listing becomes available.
         self.send_message_to_telegram(
-            f'"Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
+            f'Currently Monitoring Listing https://homes.midlandheart.org.uk/Search.PropertyDetails.aspx?PropertyId={self.listing_id}')
 
         self.logger.info(f"Current Page --> {self.driver.title}")
         self.monitor_listing(self.listing_id)
-        time.sleep(1)
+        time.sleep(2)
 
         self.pass_eligibility_stage()
         time.sleep(2)
